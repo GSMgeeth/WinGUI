@@ -1,0 +1,37 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  check:
+    # Windows, because the session-worker tests start Windows PowerShell 5.1
+    # and the credential tests use Windows Credential Manager.
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Type-check
+        run: npm run typecheck
+
+      # Also produces dist/, which the Tauri build script requires to exist.
+      - name: Build frontend
+        run: npm run build
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - name: Backend tests
+        working-directory: src-tauri
+        run: cargo test --lib
